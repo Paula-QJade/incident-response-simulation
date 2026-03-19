@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Legal &amp; IR Glossary{% endblock %}
+
+{% block content %}
+<div class="about-page">
+    <div class="container">
+        <h1>&#x1F4D6; Legal &amp; IR Glossary</h1>
+        <p style="color: var(--gray-600); margin-bottom: 2rem;">Key terms you'll encounter in incident response — from a legal and regulatory perspective.</p>
+
+        <div class="glossary-page-grid">
+            {% for entry in glossary %}
+            <div class="glossary-page-entry">
+                <div class="glossary-term">
+                    <span class="term-abbr">{{ entry.term }}</span>
+                    {% if entry.full != entry.term %}
+                    <span class="term-full">{{ entry.full }}</span>
+                    {% endif %}
+                </div>
+                <p class="term-def">{{ entry.definition }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

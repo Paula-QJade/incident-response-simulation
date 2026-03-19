@@ -5,7 +5,12 @@
 {% block content %}
 <div class="scenario-page">
     <div class="container">
-        <a href="/" class="back-link">&larr; All Scenarios</a>
+        <div class="scenario-topbar">
+            <a href="/" class="back-link">&larr; All Scenarios</a>
+            <button class="glossary-btn" id="glossary-toggle" title="Open legal glossary">
+                &#x1F4D6; Glossary
+            </button>
+        </div>
 
         <div class="scenario-header">
             <div class="scenario-meta">
@@ -19,21 +24,49 @@
         <div class="progress-bar-container">
             <div class="progress-labels">
                 <span>Progress</span>
-                <span id="progress-text">Step 1 of {{ scenario.steps | length }}</span>
+                <span id="progress-text">Step 1 of {{ scenario.main_steps | length }}</span>
             </div>
             <div class="progress-bar">
-                <div class="progress-fill" id="progress-fill" style="width: {{ (1 / scenario.steps | length * 100) }}%"></div>
+                <div class="progress-fill" id="progress-fill" style="width: {{ (1 / scenario.main_steps | length * 100) | round(1) }}%"></div>
             </div>
         </div>
 
         <div class="score-display">
-            <span>Score: <strong id="current-score">0</strong> / <strong id="max-score">{{ scenario.steps | length * 3 }}</strong></span>
+            <span>Score: <strong id="current-score">0</strong> / <strong id="max-score">{{ scenario.main_steps | length * 3 }}</strong></span>
         </div>
 
         <div id="steps-container">
-            {% for step in scenario.steps %}
-            <div class="step-panel {% if not loop.first %}hidden{% endif %}" id="step-{{ step.id }}" data-step="{{ step.id }}">
-                <div class="step-number">Decision Point {{ loop.index }}</div>
+            {% for step in steps_list %}
+            <div class="step-panel hidden" id="step-{{ step.id }}" data-step="{{ step.id }}"
+                 data-hint="{{ step.hint }}"
+                 data-time="{{ step.time_limit }}"
+                 data-is-branch="{{ 'true' if step.is_branch else 'false' }}">
+
+                {% if step.is_branch %}
+                <div class="branch-context">
+                    <div class="branch-icon">&#x26A0;&#xFE0F; Consequence</div>
+                    <p class="branch-text">{{ step.branch_context }}</p>
+                </div>
+                {% endif %}
+
+                <div class="step-header-row">
+                    <div class="step-number">{{ step.label }}</div>
+                    <div class="step-controls">
+                        <div class="timer-display hidden" id="timer-{{ step.id }}">
+                            <span class="timer-icon">&#x23F1;</span>
+                            <span class="timer-value" id="timer-val-{{ step.id }}">{{ step.time_limit }}</span>s
+                        </div>
+                        <button class="hint-btn" id="hint-btn-{{ step.id }}" data-step="{{ step.id }}">
+                            &#x1F4A1; Use Hint <span class="hint-cost">(-1 pt)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="hint-panel hidden" id="hint-{{ step.id }}">
+                    <span class="hint-label">&#x1F4A1; Hint</span>
+                    <span class="hint-text">{{ step.hint }}</span>
+                </div>
+
                 <h2 class="step-prompt">{{ step.prompt }}</h2>
 
                 <div class="options-grid">
@@ -41,7 +74,8 @@
                     <button class="option-btn"
                             data-option="{{ option.id }}"
                             data-scenario="{{ scenario.id }}"
-                            data-step="{{ step.id }}">
+                            data-step="{{ step.id }}"
+                            data-next="{{ option.next_step or '' }}">
                         <span class="option-letter">{{ option.id | upper }}</span>
                         <span class="option-text">{{ option.text }}</span>
                     </button>
@@ -56,15 +90,10 @@
                 </div>
 
                 <div class="step-actions hidden" id="actions-{{ step.id }}">
-                    {% if not loop.last %}
-                    <button class="btn btn-primary next-btn" data-next="{{ loop.index + 1 }}" data-current="{{ step.id }}">
-                        Next Decision &rarr;
+                    <div class="step-result-score" id="step-score-display-{{ step.id }}"></div>
+                    <button class="btn btn-primary next-step-btn" id="next-btn-{{ step.id }}" data-current="{{ step.id }}">
+                        Next &rarr;
                     </button>
-                    {% else %}
-                    <button class="btn btn-primary finish-btn" id="finish-btn">
-                        See Results
-                    </button>
-                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -79,12 +108,32 @@
             <div class="results-score-display">
                 <div class="final-score">
                     <span class="score-value" id="final-score-value"></span>
-                    <span class="score-label">out of {{ scenario.steps | length * 3 }} points</span>
+                    <span class="score-label">out of {{ scenario.main_steps | length * 3 }} points</span>
                 </div>
                 <div class="score-bar">
                     <div class="score-bar-fill" id="score-bar-fill"></div>
                 </div>
             </div>
+
+            <div class="answer-summary">
+                <h3>Your Decision Summary</h3>
+                <div id="summary-list"></div>
+            </div>
+
+            <div class="frameworks-section">
+                <h3>&#x1F4DA; Recommended Reading</h3>
+                <p class="frameworks-intro">Deepen your knowledge with these authoritative resources:</p>
+                <div class="frameworks-list">
+                    {% for fw in frameworks %}
+                    <a href="{{ fw.url }}" target="_blank" rel="noopener" class="framework-link">
+                        <div class="framework-name">{{ fw.name }}</div>
+                        <div class="framework-desc">{{ fw.description }}</div>
+                        <div class="framework-arrow">&#x2192;</div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
             <div class="results-actions">
                 <a href="/" class="btn btn-secondary">Back to Scenarios</a>
                 <button class="btn btn-primary" onclick="location.reload()">Try Again</button>
@@ -92,33 +141,169 @@
         </div>
     </div>
 </div>
+
+<div class="glossary-modal hidden" id="glossary-modal">
+    <div class="glossary-overlay" id="glossary-overlay"></div>
+    <div class="glossary-panel">
+        <div class="glossary-header">
+            <h2>&#x1F4D6; Legal &amp; IR Glossary</h2>
+            <button class="glossary-close" id="glossary-close">&times;</button>
+        </div>
+        <div class="glossary-content">
+            {% for entry in glossary %}
+            <div class="glossary-entry">
+                <div class="glossary-term">
+                    <span class="term-abbr">{{ entry.term }}</span>
+                    {% if entry.full != entry.term %}
+                    <span class="term-full">{{ entry.full }}</span>
+                    {% endif %}
+                </div>
+                <p class="term-def">{{ entry.definition }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    const totalSteps = {{ scenario.steps | length }};
+    const scenarioId = {{ scenario.id }};
+    const mainStepIds = {{ scenario.main_steps | tojson }};
+    const stepOrder = {{ scenario.step_order | tojson }};
+    const maxScore = mainStepIds.length * 3;
+
     let currentScore = 0;
-    let answeredSteps = 0;
-    let stepScores = {};
+    let mainStepsAnswered = 0;
+    let answerLog = [];
+    let hintUsed = {};
+    let timers = {};
+
+    const decisionRecord = {};
+
+    function showStep(stepId) {
+        document.querySelectorAll('.step-panel').forEach(p => p.classList.add('hidden'));
+        const panel = document.getElementById('step-' + stepId);
+        if (!panel) return;
+        panel.classList.remove('hidden');
+        startTimer(stepId);
+    }
+
+    function startTimer(stepId) {
+        const panel = document.getElementById('step-' + stepId);
+        if (!panel) return;
+        const timeLimit = parseInt(panel.dataset.time) || 0;
+        if (!timeLimit) return;
+
+        const timerEl = document.getElementById('timer-' + stepId);
+        const timerVal = document.getElementById('timer-val-' + stepId);
+        if (!timerEl || !timerVal) return;
+
+        timerEl.classList.remove('hidden');
+        let remaining = timeLimit;
+        timerVal.textContent = remaining;
+
+        const interval = setInterval(() => {
+            remaining--;
+            timerVal.textContent = remaining;
+            if (remaining <= 15) {
+                timerEl.classList.add('timer-warning');
+            }
+            if (remaining <= 0) {
+                clearInterval(interval);
+                handleTimeout(stepId);
+            }
+        }, 1000);
+        timers[stepId] = interval;
+    }
+
+    function stopTimer(stepId) {
+        if (timers[stepId]) {
+            clearInterval(timers[stepId]);
+            delete timers[stepId];
+        }
+        const timerEl = document.getElementById('timer-' + stepId);
+        if (timerEl) timerEl.classList.add('hidden');
+    }
+
+    function handleTimeout(stepId) {
+        const panel = document.getElementById('step-' + stepId);
+        if (!panel || panel.querySelector('.option-btn.selected')) return;
+
+        panel.querySelectorAll('.option-btn').forEach(b => {
+            b.disabled = true;
+        });
+
+        const feedbackPanel = document.getElementById('feedback-' + stepId);
+        const feedbackText = document.getElementById('feedback-text-' + stepId);
+        const feedbackIcon = document.getElementById('feedback-icon-' + stepId);
+
+        feedbackText.textContent = "Time's up! In a real incident, hesitation costs you. Review the best answer highlighted above and study the reasoning before moving on.";
+        feedbackPanel.classList.remove('hidden');
+        feedbackPanel.classList.add('feedback-timeout');
+        feedbackIcon.textContent = '⏰';
+
+        const isBranch = panel.dataset.isBranch === 'true';
+        recordAnswer(stepId, null, 0, "⏰ Timed out", isBranch);
+
+        showNextButton(stepId, null);
+    }
+
+    function recordAnswer(stepId, answerId, score, feedbackText, isBranch) {
+        decisionRecord[stepId] = { stepId, answerId, score, feedbackText, isBranch };
+
+        if (!isBranch) {
+            mainStepsAnswered++;
+            currentScore += score;
+            document.getElementById('current-score').textContent = currentScore;
+
+            const pct = (mainStepsAnswered / mainStepIds.length) * 100;
+            document.getElementById('progress-fill').style.width = pct + '%';
+            document.getElementById('progress-text').textContent =
+                'Step ' + mainStepsAnswered + ' of ' + mainStepIds.length;
+        }
+    }
+
+    function showNextButton(stepId, nextStepId) {
+        const actionsEl = document.getElementById('actions-' + stepId);
+        actionsEl.classList.remove('hidden');
+
+        const nextBtn = document.getElementById('next-btn-' + stepId);
+        if (nextStepId) {
+            nextBtn.textContent = 'Continue \u2192';
+            nextBtn.onclick = () => {
+                document.getElementById('step-' + stepId).classList.add('hidden');
+                showStep(nextStepId);
+            };
+        } else {
+            nextBtn.textContent = 'See Results';
+            nextBtn.onclick = () => showResults();
+        }
+    }
 
     document.querySelectorAll('.option-btn').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const stepId = parseInt(this.dataset.step);
-            const scenarioId = parseInt(this.dataset.scenario);
+        btn.addEventListener('click', async function () {
+            const stepId = this.dataset.step;
             const answerId = this.dataset.option;
-            const stepPanel = document.getElementById('step-' + stepId);
+            const panel = document.getElementById('step-' + stepId);
 
-            if (stepPanel.querySelector('.option-btn.selected')) return;
+            if (panel.querySelector('.option-btn.selected')) return;
+
+            stopTimer(stepId);
+
+            const isBranch = panel.dataset.isBranch === 'true';
+            const hintPenalty = hintUsed[stepId] ? 1 : 0;
 
             const response = await fetch('/api/submit_answer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ scenario_id: scenarioId, step_id: stepId, answer_id: answerId })
             });
-
             const result = await response.json();
 
-            stepPanel.querySelectorAll('.option-btn').forEach(b => {
+            const adjustedScore = Math.max(0, result.score - hintPenalty);
+
+            panel.querySelectorAll('.option-btn').forEach(b => {
                 b.disabled = true;
                 if (b.dataset.option === answerId) {
                     b.classList.add('selected');
@@ -133,7 +318,10 @@
             const feedbackText = document.getElementById('feedback-text-' + stepId);
             const feedbackIcon = document.getElementById('feedback-icon-' + stepId);
 
-            feedbackText.textContent = result.feedback;
+            let fb = result.feedback;
+            if (hintPenalty && result.score > 0) fb += ' (−1 point: hint used)';
+
+            feedbackText.textContent = fb;
             feedbackPanel.classList.remove('hidden');
 
             if (result.is_best) {
@@ -147,62 +335,109 @@
                 feedbackIcon.textContent = '✗';
             }
 
-            stepScores[stepId] = result.score;
-            currentScore += result.score;
-            answeredSteps++;
-
-            document.getElementById('current-score').textContent = currentScore;
-
-            const progressPct = (answeredSteps / totalSteps) * 100;
-            document.getElementById('progress-fill').style.width = progressPct + '%';
-            document.getElementById('progress-text').textContent = 'Step ' + answeredSteps + ' of ' + totalSteps;
-
-            document.getElementById('actions-' + stepId).classList.remove('hidden');
-        });
-    });
-
-    document.querySelectorAll('.next-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const nextStep = this.dataset.next;
-            const currentStepId = this.dataset.current;
-
-            document.getElementById('step-' + currentStepId).classList.add('hidden');
-            document.getElementById('step-' + nextStep).classList.remove('hidden');
-        });
-    });
-
-    const finishBtn = document.getElementById('finish-btn');
-    if (finishBtn) {
-        finishBtn.addEventListener('click', function() {
-            document.getElementById('step-' + totalSteps).classList.add('hidden');
-
-            const maxScore = totalSteps * 3;
-            const pct = Math.round((currentScore / maxScore) * 100);
-            const resultsPanel = document.getElementById('results-panel');
-            const resultsIcon = document.getElementById('results-icon');
-            const resultsSummary = document.getElementById('results-summary');
-            const finalScoreValue = document.getElementById('final-score-value');
-            const scoreBarFill = document.getElementById('score-bar-fill');
-
-            finalScoreValue.textContent = currentScore;
-            scoreBarFill.style.width = pct + '%';
-
-            if (pct >= 80) {
-                resultsIcon.textContent = '🏆';
-                resultsSummary.textContent = 'Excellent work! You demonstrated strong incident response knowledge.';
-                resultsPanel.classList.add('results-excellent');
-            } else if (pct >= 50) {
-                resultsIcon.textContent = '👍';
-                resultsSummary.textContent = 'Good effort! Review the feedback to strengthen your understanding.';
-                resultsPanel.classList.add('results-good');
-            } else {
-                resultsIcon.textContent = '📚';
-                resultsSummary.textContent = 'Keep learning! Incident response is a skill built through study and practice.';
-                resultsPanel.classList.add('results-learning');
+            const scoreDisplay = document.getElementById('step-score-display-' + stepId);
+            if (scoreDisplay) {
+                scoreDisplay.textContent = '+' + adjustedScore + ' / 3 pts';
+                scoreDisplay.className = 'step-result-score score-' + (result.is_best ? 'best' : result.score > 0 ? 'partial' : 'zero');
             }
 
-            resultsPanel.classList.remove('hidden');
+            recordAnswer(stepId, answerId, adjustedScore, result.feedback, isBranch);
+
+            const nextStepId = result.next_step_id || null;
+            showNextButton(stepId, nextStepId);
         });
+    });
+
+    document.querySelectorAll('.hint-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const stepId = this.dataset.step;
+            const panel = document.getElementById('step-' + stepId);
+            if (panel.querySelector('.option-btn.selected')) return;
+
+            if (hintUsed[stepId]) return;
+            hintUsed[stepId] = true;
+
+            const hintPanel = document.getElementById('hint-' + stepId);
+            hintPanel.classList.remove('hidden');
+            this.disabled = true;
+            this.classList.add('hint-used');
+            this.textContent = '💡 Hint revealed (−1 pt applied)';
+        });
+    });
+
+    function showResults() {
+        document.querySelectorAll('.step-panel').forEach(p => p.classList.add('hidden'));
+
+        const pct = Math.round((currentScore / maxScore) * 100);
+        const resultsPanel = document.getElementById('results-panel');
+        const resultsIcon = document.getElementById('results-icon');
+        const resultsSummary = document.getElementById('results-summary');
+        const finalScoreValue = document.getElementById('final-score-value');
+        const scoreBarFill = document.getElementById('score-bar-fill');
+
+        finalScoreValue.textContent = currentScore;
+        setTimeout(() => { scoreBarFill.style.width = pct + '%'; }, 100);
+
+        if (pct >= 80) {
+            resultsIcon.textContent = '🏆';
+            resultsSummary.textContent = 'Excellent work! You demonstrated strong incident response knowledge.';
+            resultsPanel.classList.add('results-excellent');
+        } else if (pct >= 50) {
+            resultsIcon.textContent = '👍';
+            resultsSummary.textContent = 'Good effort! Review the feedback to strengthen your understanding.';
+            resultsPanel.classList.add('results-good');
+        } else {
+            resultsIcon.textContent = '📚';
+            resultsSummary.textContent = 'Keep learning! Incident response is a skill built through study and practice.';
+            resultsPanel.classList.add('results-learning');
+        }
+
+        const summaryList = document.getElementById('summary-list');
+        summaryList.innerHTML = '';
+        stepOrder.forEach(sid => {
+            const rec = decisionRecord[sid];
+            if (!rec) return;
+            const panel = document.getElementById('step-' + sid);
+            const label = panel ? panel.querySelector('.step-number')?.textContent : sid;
+            const prompt = panel ? panel.querySelector('.step-prompt')?.textContent : '';
+            const selectedBtn = panel ? panel.querySelector('.option-btn.selected') : null;
+            const chosenText = selectedBtn ? selectedBtn.querySelector('.option-text')?.textContent : 'Timed out';
+
+            const div = document.createElement('div');
+            div.className = 'summary-item' + (rec.isBranch ? ' summary-branch' : '');
+            const scoreClass = rec.score === 3 ? 'score-best' : rec.score > 0 ? 'score-partial' : 'score-zero';
+            div.innerHTML = `
+                <div class="summary-header">
+                    <span class="summary-label">${label}</span>
+                    <span class="summary-score ${scoreClass}">+${rec.score} pts</span>
+                </div>
+                <p class="summary-prompt">${prompt}</p>
+                <p class="summary-choice">&#x276F; <em>${chosenText}</em></p>
+            `;
+            summaryList.appendChild(div);
+        });
+
+        resultsPanel.classList.remove('hidden');
     }
+
+    const glossaryToggle = document.getElementById('glossary-toggle');
+    const glossaryModal = document.getElementById('glossary-modal');
+    const glossaryClose = document.getElementById('glossary-close');
+    const glossaryOverlay = document.getElementById('glossary-overlay');
+
+    glossaryToggle.addEventListener('click', () => {
+        glossaryModal.classList.remove('hidden');
+        document.body.classList.add('modal-open');
+    });
+    glossaryClose.addEventListener('click', () => {
+        glossaryModal.classList.add('hidden');
+        document.body.classList.remove('modal-open');
+    });
+    glossaryOverlay.addEventListener('click', () => {
+        glossaryModal.classList.add('hidden');
+        document.body.classList.remove('modal-open');
+    });
+
+    showStep(stepOrder[0]);
 </script>
 {% endblock %}

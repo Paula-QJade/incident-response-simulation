@@ -4,7 +4,7 @@ A beginner-friendly incident response simulation tool for legal & policy profess
 
 ## Overview
 
-This is an interactive web application that guides users through realistic cybersecurity incident response scenarios. It's designed specifically for legal counsel, compliance officers, and policy professionals who need to understand incident response from a legal and regulatory perspective.
+Interactive web application guiding users through realistic cybersecurity incident response scenarios. Designed for legal counsel, compliance officers, and policy professionals who need to understand IR from a legal and regulatory perspective.
 
 ## Tech Stack
 
@@ -17,27 +17,38 @@ This is an interactive web application that guides users through realistic cyber
 ## Project Structure
 
 ```
-main.py              # Flask application with all routes and scenario data
+main.py              # Flask app — routes, scenario data, glossary, framework links
 templates/
-  base.html          # Base layout template
+  base.html          # Base layout (navbar, footer)
   index.html         # Home page with scenario cards
-  scenario.html      # Interactive scenario page
+  scenario.html      # Interactive scenario page (all gameplay features)
   about.html         # About page with IR lifecycle info
+  glossary.html      # Standalone glossary page
 static/
   css/style.css      # All styles
 ```
 
 ## Features
 
-- 3 interactive scenarios: Data Breach, Ransomware, Insider Threat
-- Decision-point based gameplay with 0–3 point scoring
-- Immediate feedback explaining why each choice is correct or incorrect
-- Progress tracking and final results summary
-- Responsive design
+### Scenarios (3 total)
+- **Data Breach: Customer PII Exposed** (Beginner, 4 decision points)
+- **Ransomware Attack on Corporate Network** (Intermediate, 3 decision points)
+- **Insider Threat: Employee Data Exfiltration** (Beginner, 3 decision points)
+
+### Gameplay
+- **Branching decisions** — critical wrong choices trigger consequence steps before continuing
+- **Countdown timer** — 75–90s per step; turns red at 15s; auto-reveals best answer on timeout
+- **Hint system** — reveal a contextual hint at a -1 point penalty
+- **0–3 point scoring** per step; branch steps scored separately
+
+### Learning Tools
+- **Glossary panel** — slide-in sidebar during gameplay with 12 key legal/regulatory terms
+- **Glossary page** — standalone `/glossary` route with full term definitions
+- **Framework links** — per-scenario reading list (NIST, CISA, GDPR, DTSA, OFAC) shown after completion
+- **Answer summary** — full decision review on the results page
 
 ## Running the App
 
-The app starts automatically via the "Start application" workflow:
 ```bash
 python main.py
 ```

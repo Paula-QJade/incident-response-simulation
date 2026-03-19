@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero-content">
+        <h1>Incident Response Simulator</h1>
+        <p class="hero-subtitle">Practice real-world cybersecurity incident response through guided scenarios — designed for legal &amp; policy professionals.</p>
+        <a href="#scenarios" class="btn btn-primary">Start Training</a>
+    </div>
+</div>
+
+<section id="scenarios" class="scenarios-section">
+    <div class="container">
+        <h2 class="section-title">Choose a Scenario</h2>
+        <p class="section-subtitle">Each scenario walks you through a realistic incident with decision points, feedback, and scoring.</p>
+
+        <div class="scenarios-grid">
+            {% for scenario in scenarios %}
+            <div class="scenario-card">
+                <div class="card-header">
+                    <span class="category-badge category-{{ scenario.category | lower | replace(' ', '-') }}">{{ scenario.category }}</span>
+                    <span class="difficulty-badge difficulty-{{ scenario.difficulty | lower }}">{{ scenario.difficulty }}</span>
+                </div>
+                <h3 class="card-title">{{ scenario.title }}</h3>
+                <p class="card-description">{{ scenario.description }}</p>
+                <div class="card-meta">
+                    <span class="step-count">{{ scenario.steps | length }} decision points</span>
+                </div>
+                <a href="/scenario/{{ scenario.id }}" class="btn btn-secondary">Begin Scenario</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="info-section">
+    <div class="container">
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-icon">&#x1F4CB;</div>
+                <h3>Realistic Scenarios</h3>
+                <p>Based on real-world incident types including data breaches, ransomware, and insider threats.</p>
+            </div>
+            <div class="info-card">
+                <div class="info-icon">&#x2696;&#xFE0F;</div>
+                <h3>Legal &amp; Policy Focus</h3>
+                <p>Emphasis on regulatory obligations, notification requirements, and legal considerations.</p>
+            </div>
+            <div class="info-card">
+                <div class="info-icon">&#x1F4A1;</div>
+                <h3>Immediate Feedback</h3>
+                <p>Understand why each decision is correct or incorrect with detailed expert explanations.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

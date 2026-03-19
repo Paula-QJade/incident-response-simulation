@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}About{% endblock %}
+
+{% block content %}
+<div class="about-page">
+    <div class="container">
+        <h1>About This Simulator</h1>
+
+        <div class="about-content">
+            <section class="about-section">
+                <h2>What is this?</h2>
+                <p>The Incident Response Simulator is an interactive training tool designed to help legal and policy professionals understand how to respond to common cybersecurity incidents. Through realistic scenario-based exercises, you practice making decisions under pressure and learn the legal, regulatory, and operational considerations involved.</p>
+            </section>
+
+            <section class="about-section">
+                <h2>Who is it for?</h2>
+                <ul>
+                    <li>In-house legal counsel dealing with data privacy and security matters</li>
+                    <li>Compliance officers and privacy professionals</li>
+                    <li>Policy professionals working on cybersecurity regulation</li>
+                    <li>Anyone new to incident response who wants a practical introduction</li>
+                </ul>
+            </section>
+
+            <section class="about-section">
+                <h2>The IR Lifecycle</h2>
+                <p>Scenarios in this simulator follow the standard Incident Response lifecycle:</p>
+                <div class="lifecycle-grid">
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-num">1</div>
+                        <h3>Preparation</h3>
+                        <p>Policies, plans, and training in place before incidents occur.</p>
+                    </div>
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-num">2</div>
+                        <h3>Identification</h3>
+                        <p>Detecting and confirming that an incident has occurred.</p>
+                    </div>
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-num">3</div>
+                        <h3>Containment</h3>
+                        <p>Limiting the scope and impact of the incident.</p>
+                    </div>
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-num">4</div>
+                        <h3>Eradication</h3>
+                        <p>Removing the threat and root cause from the environment.</p>
+                    </div>
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-num">5</div>
+                        <h3>Recovery</h3>
+                        <p>Restoring systems and operations to normal.</p>
+                    </div>
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-num">6</div>
+                        <h3>Lessons Learned</h3>
+                        <p>Post-incident review to improve future response.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="about-section">
+                <h2>Scoring</h2>
+                <p>Each decision is scored on a scale of 0–3:</p>
+                <ul>
+                    <li><strong>3 points</strong> — Best practice response</li>
+                    <li><strong>2 points</strong> — Acceptable but not optimal</li>
+                    <li><strong>1 point</strong> — Partially correct or incomplete</li>
+                    <li><strong>0 points</strong> — Incorrect or harmful action</li>
+                </ul>
+                <p>Aim for 80% or higher to demonstrate strong incident response competency.</p>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

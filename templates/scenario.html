@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}{{ scenario.title }}{% endblock %}
+
+{% block content %}
+<div class="scenario-page">
+    <div class="container">
+        <a href="/" class="back-link">&larr; All Scenarios</a>
+
+        <div class="scenario-header">
+            <div class="scenario-meta">
+                <span class="category-badge category-{{ scenario.category | lower | replace(' ', '-') }}">{{ scenario.category }}</span>
+                <span class="difficulty-badge difficulty-{{ scenario.difficulty | lower }}">{{ scenario.difficulty }}</span>
+            </div>
+            <h1>{{ scenario.title }}</h1>
+            <p class="scenario-brief">{{ scenario.description }}</p>
+        </div>
+
+        <div class="progress-bar-container">
+            <div class="progress-labels">
+                <span>Progress</span>
+                <span id="progress-text">Step 1 of {{ scenario.steps | length }}</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: {{ (1 / scenario.steps | length * 100) }}%"></div>
+            </div>
+        </div>
+
+        <div class="score-display">
+            <span>Score: <strong id="current-score">0</strong> / <strong id="max-score">{{ scenario.steps | length * 3 }}</strong></span>
+        </div>
+
+        <div id="steps-container">
+            {% for step in scenario.steps %}
+            <div class="step-panel {% if not loop.first %}hidden{% endif %}" id="step-{{ step.id }}" data-step="{{ step.id }}">
+                <div class="step-number">Decision Point {{ loop.index }}</div>
+                <h2 class="step-prompt">{{ step.prompt }}</h2>
+
+                <div class="options-grid">
+                    {% for option in step.options %}
+                    <button class="option-btn"
+                            data-option="{{ option.id }}"
+                            data-scenario="{{ scenario.id }}"
+                            data-step="{{ step.id }}">
+                        <span class="option-letter">{{ option.id | upper }}</span>
+                        <span class="option-text">{{ option.text }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <div class="feedback-panel hidden" id="feedback-{{ step.id }}">
+                    <div class="feedback-icon" id="feedback-icon-{{ step.id }}"></div>
+                    <div class="feedback-content">
+                        <p class="feedback-text" id="feedback-text-{{ step.id }}"></p>
+                    </div>
+                </div>
+
+                <div class="step-actions hidden" id="actions-{{ step.id }}">
+                    {% if not loop.last %}
+                    <button class="btn btn-primary next-btn" data-next="{{ loop.index + 1 }}" data-current="{{ step.id }}">
+                        Next Decision &rarr;
+                    </button>
+                    {% else %}
+                    <button class="btn btn-primary finish-btn" id="finish-btn">
+                        See Results
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="results-panel hidden" id="results-panel">
+            <div class="results-header">
+                <div class="results-icon" id="results-icon"></div>
+                <h2>Scenario Complete!</h2>
+                <p class="results-summary" id="results-summary"></p>
+            </div>
+            <div class="results-score-display">
+                <div class="final-score">
+                    <span class="score-value" id="final-score-value"></span>
+                    <span class="score-label">out of {{ scenario.steps | length * 3 }} points</span>
+                </div>
+                <div class="score-bar">
+                    <div class="score-bar-fill" id="score-bar-fill"></div>
+                </div>
+            </div>
+            <div class="results-actions">
+                <a href="/" class="btn btn-secondary">Back to Scenarios</a>
+                <button class="btn btn-primary" onclick="location.reload()">Try Again</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const totalSteps = {{ scenario.steps | length }};
+    let currentScore = 0;
+    let answeredSteps = 0;
+    let stepScores = {};
+
+    document.querySelectorAll('.option-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const stepId = parseInt(this.dataset.step);
+            const scenarioId = parseInt(this.dataset.scenario);
+            const answerId = this.dataset.option;
+            const stepPanel = document.getElementById('step-' + stepId);
+
+            if (stepPanel.querySelector('.option-btn.selected')) return;
+
+            const response = await fetch('/api/submit_answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scenario_id: scenarioId, step_id: stepId, answer_id: answerId })
+            });
+
+            const result = await response.json();
+
+            stepPanel.querySelectorAll('.option-btn').forEach(b => {
+                b.disabled = true;
+                if (b.dataset.option === answerId) {
+                    b.classList.add('selected');
+                    b.classList.add(result.is_best ? 'correct' : (result.score > 0 ? 'partial' : 'incorrect'));
+                }
+                if (b.dataset.option === result.best_answer && !result.is_best) {
+                    b.classList.add('best-answer');
+                }
+            });
+
+            const feedbackPanel = document.getElementById('feedback-' + stepId);
+            const feedbackText = document.getElementById('feedback-text-' + stepId);
+            const feedbackIcon = document.getElementById('feedback-icon-' + stepId);
+
+            feedbackText.textContent = result.feedback;
+            feedbackPanel.classList.remove('hidden');
+
+            if (result.is_best) {
+                feedbackPanel.classList.add('feedback-correct');
+                feedbackIcon.textContent = '✓';
+            } else if (result.score > 0) {
+                feedbackPanel.classList.add('feedback-partial');
+                feedbackIcon.textContent = '~';
+            } else {
+                feedbackPanel.classList.add('feedback-incorrect');
+                feedbackIcon.textContent = '✗';
+            }
+
+            stepScores[stepId] = result.score;
+            currentScore += result.score;
+            answeredSteps++;
+
+            document.getElementById('current-score').textContent = currentScore;
+
+            const progressPct = (answeredSteps / totalSteps) * 100;
+            document.getElementById('progress-fill').style.width = progressPct + '%';
+            document.getElementById('progress-text').textContent = 'Step ' + answeredSteps + ' of ' + totalSteps;
+
+            document.getElementById('actions-' + stepId).classList.remove('hidden');
+        });
+    });
+
+    document.querySelectorAll('.next-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const nextStep = this.dataset.next;
+            const currentStepId = this.dataset.current;
+
+            document.getElementById('step-' + currentStepId).classList.add('hidden');
+            document.getElementById('step-' + nextStep).classList.remove('hidden');
+        });
+    });
+
+    const finishBtn = document.getElementById('finish-btn');
+    if (finishBtn) {
+        finishBtn.addEventListener('click', function() {
+            document.getElementById('step-' + totalSteps).classList.add('hidden');
+
+            const maxScore = totalSteps * 3;
+            const pct = Math.round((currentScore / maxScore) * 100);
+            const resultsPanel = document.getElementById('results-panel');
+            const resultsIcon = document.getElementById('results-icon');
+            const resultsSummary = document.getElementById('results-summary');
+            const finalScoreValue = document.getElementById('final-score-value');
+            const scoreBarFill = document.getElementById('score-bar-fill');
+
+            finalScoreValue.textContent = currentScore;
+            scoreBarFill.style.width = pct + '%';
+
+            if (pct >= 80) {
+                resultsIcon.textContent = '🏆';
+                resultsSummary.textContent = 'Excellent work! You demonstrated strong incident response knowledge.';
+                resultsPanel.classList.add('results-excellent');
+            } else if (pct >= 50) {
+                resultsIcon.textContent = '👍';
+                resultsSummary.textContent = 'Good effort! Review the feedback to strengthen your understanding.';
+                resultsPanel.classList.add('results-good');
+            } else {
+                resultsIcon.textContent = '📚';
+                resultsSummary.textContent = 'Keep learning! Incident response is a skill built through study and practice.';
+                resultsPanel.classList.add('results-learning');
+            }
+
+            resultsPanel.classList.remove('hidden');
+        });
+    }
+</script>
+{% endblock %}
